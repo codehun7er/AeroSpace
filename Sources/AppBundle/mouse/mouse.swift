@@ -29,5 +29,19 @@ private func isGrabbedByMouse(_ window: Window) async throws -> Bool {
         .contains(mouseLocation)
 }
 
+@MainActor private var lastLeftMouseDown: (location: CGPoint, date: Date)? = nil
+
+@MainActor func rememberLeftMouseDown() {
+    lastLeftMouseDown = (mouseLocation, .now)
+}
+
+/// Where the user has just clicked. While the button is held, the mouse is still where the click happened
+/// (or drags the clicked window along), which also covers the case when the click isn't remembered yet
+@MainActor var recentLeftMouseDownLocation: CGPoint? {
+    if isLeftMouseButtonDown { return mouseLocation }
+    guard let lastLeftMouseDown, lastLeftMouseDown.date.distance(to: .now) < 1 else { return nil }
+    return lastLeftMouseDown.location
+}
+
 /// Same motivation as in monitorFrameNormalized
 var mouseLocation: CGPoint { NSEvent.mouseLocation.withYAxisFlipped }
