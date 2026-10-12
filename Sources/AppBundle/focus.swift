@@ -60,7 +60,18 @@ private struct FrozenFocus: AeroAny, Equatable, Sendable {
 /// AEROSPACE_WORKSPACE env before accessing the global focus.
 @MainActor var focus: LiveFocus { _focus.live }
 
+/// The closed windows cache remembers which workspace is visible on every monitor.
+/// Revealing a hidden workspace makes that snapshot stale, so the cache must be dropped.
+/// Otherwise a window that hides and reappears with the same id (e.g. Telegram media viewer)
+/// restores the stale snapshot and switches the monitor back to the workspace that was visible back then.
 @MainActor func setFocus(to newFocus: LiveFocus) -> Bool {
+    if !newFocus.workspace.isVisible { resetClosedWindowsCache() }
+    return setFocusPreservingClosedWindowsCache(to: newFocus)
+}
+
+/// Unlike ``setFocus(to:)``, keeps the closed windows cache intact.
+/// Must only be used while windows are being garbage collected, to not lose the snapshot that was just taken.
+@MainActor func setFocusPreservingClosedWindowsCache(to newFocus: LiveFocus) -> Bool {
     if _focus == newFocus.frozen { return true }
     let oldFocus = focus
     // Normalize mruWindow when focus away from a workspace
